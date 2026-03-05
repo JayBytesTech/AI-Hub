@@ -9,9 +9,13 @@
     "schemas"
   ],
   "scripts": {
-    "build": "echo \"No build step yet\"",
-    "test": "echo \"No tests yet\"",
-    "lint": "echo \"No lint step yet\""
+    "build": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.9",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
   }
 }
-

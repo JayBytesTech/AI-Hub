@@ -23,14 +23,14 @@ jobs:
       - name: Install JS dependencies
         run: corepack pnpm install --frozen-lockfile
 
-      - name: Build Hub
-        run: corepack pnpm --filter @ai-hub/hub build
+      - name: Lint Workspace
+        run: corepack pnpm -r run lint
 
-      - name: Test Hub
-        run: corepack pnpm --filter @ai-hub/hub test
+      - name: Build Workspace
+        run: corepack pnpm -r run build
 
-      - name: Build Desktop Web
-        run: corepack pnpm --filter @ai-hub/desktop build
+      - name: Test Workspace
+        run: corepack pnpm -r run test
 
   rust:
     runs-on: ubuntu-latest
@@ -46,4 +46,3 @@ jobs:
 
       - name: Cargo Test
         run: cargo test --manifest-path crates/tools-runner/Cargo.toml
-

@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.json && vite build",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
     "tauri:dev": "tauri dev",
     "prepare:bundle": "node ./scripts/prepareBundle.mjs",
     "tauri:build": "corepack pnpm run prepare:bundle && tauri build",
-    "test": "echo \"No tests yet\"",
-    "lint": "echo \"No lint step yet\""
+    "test": "vitest run",
+    "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
@@ -24,6 +24,7 @@
     "@types/react-dom": "^18.3.6",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.7.3",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
   }
 }

@@ -38,6 +38,9 @@ importers:
       vite:
         specifier: ^5.4.11
         version: 5.4.21(@types/node@22.19.13)
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.13)
 
   apps/hub:
     dependencies:
@@ -70,7 +73,17 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.19.13)
 
-  packages/shared/schemas: {}
+  packages/shared/schemas:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.9
+        version: 22.19.13
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.13)
 
 packages:
 
