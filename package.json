@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "packageManager": "pnpm@10.0.0",
   "scripts": {
+    "setup": "pnpm install",
+    "dev": "pnpm --parallel --stream --filter @ai-hub/hub --filter @ai-hub/desktop run dev",
+    "verify": "pnpm -r run lint && pnpm -r run build && pnpm -r run test && cargo test --manifest-path crates/tools-runner/Cargo.toml",
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
