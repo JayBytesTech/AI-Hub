@@ -27,6 +27,7 @@ export type TerminalEvent =
   | {
       type: "terminal.exit";
       sessionId: string;
+      workspaceId: string;
       code: number | null;
       signal: NodeJS.Signals | null;
       timestamp: number;
@@ -97,6 +98,7 @@ export class TerminalManager {
       this.emit({
         type: "terminal.exit",
         sessionId,
+        workspaceId: current?.workspaceId ?? input.workspaceId,
         code,
         signal,
         timestamp: Date.now()
@@ -126,6 +128,21 @@ export class TerminalManager {
 
   hasSession(sessionId: string) {
     return this.sessions.has(sessionId);
+  }
+
+  getSession(sessionId: string) {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return undefined;
+    }
+    return {
+      id: session.id,
+      workspaceId: session.workspaceId,
+      cwd: session.cwd,
+      shell: session.shell,
+      startedAt: session.startedAt,
+      active: session.active
+    };
   }
 
   writeInput(sessionId: string, input: string, appendNewline: boolean) {
@@ -195,4 +212,3 @@ export class TerminalManager {
     this.emitter.emit("event", event);
   }
 }
-

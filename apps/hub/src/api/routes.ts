@@ -32,6 +32,15 @@ type ArtifactInput = {
 };
 type TerminalSessionInput = { workspaceId: string; shell?: string };
 type TerminalInput = { input: string; appendNewline?: boolean; confirm?: boolean };
+type TerminalAuditQuery = {
+  workspaceId?: string;
+  sessionId?: string;
+  status?: string;
+  eventType?: string;
+  limit?: string;
+};
+
+const terminalConfirmRequired = (process.env.TERMINAL_CONFIRM_REQUIRED ?? "true") !== "false";
 
 function newId() {
   return randomUUID();
@@ -66,6 +75,9 @@ async function resolveWorkspacePath(workspaceRoot: string, requestedPath: string
 
 export async function registerRoutes(app: FastifyInstance, db: Db, terminalManager: TerminalManager) {
   const workspaceByIdStmt = db.prepare("SELECT * FROM workspaces WHERE id = ?");
+  const insertTerminalAuditStmt = db.prepare(
+    "INSERT INTO terminal_audit_logs (id, session_id, workspace_id, event_type, status, actor, command, confirmation_required, confirmed, append_newline, exit_code, signal, error, metadata, created_at) VALUES (@id, @session_id, @workspace_id, @event_type, @status, @actor, @command, @confirmation_required, @confirmed, @append_newline, @exit_code, @signal, @error, @metadata, @created_at)"
+  );
 
   const getWorkspaceById = (workspaceId: string) => {
     const row = workspaceByIdStmt.get(workspaceId) as
@@ -73,6 +85,82 @@ export async function registerRoutes(app: FastifyInstance, db: Db, terminalManag
       | undefined;
     return row;
   };
+
+  const getRequestActor = (rawActor: unknown) => {
+    if (typeof rawActor !== "string") {
+      return "local-user";
+    }
+    const trimmed = rawActor.trim();
+    return trimmed.length > 0 ? trimmed.slice(0, 120) : "local-user";
+  };
+
+  const writeTerminalAudit = (row: {
+    sessionId: string;
+    workspaceId: string;
+    eventType: string;
+    status: string;
+    actor?: string;
+    command?: string | null;
+    confirmationRequired?: boolean | null;
+    confirmed?: boolean | null;
+    appendNewline?: boolean | null;
+    exitCode?: number | null;
+    signal?: string | null;
+    error?: string | null;
+    metadata?: Record<string, unknown> | null;
+  }) => {
+    insertTerminalAuditStmt.run({
+      id: newId(),
+      session_id: row.sessionId,
+      workspace_id: row.workspaceId,
+      event_type: row.eventType,
+      status: row.status,
+      actor: row.actor ?? "system",
+      command: row.command ?? null,
+      confirmation_required:
+        row.confirmationRequired === undefined || row.confirmationRequired === null
+          ? null
+          : Number(row.confirmationRequired),
+      confirmed:
+        row.confirmed === undefined || row.confirmed === null ? null : Number(row.confirmed),
+      append_newline:
+        row.appendNewline === undefined || row.appendNewline === null ? null : Number(row.appendNewline),
+      exit_code: row.exitCode ?? null,
+      signal: row.signal ?? null,
+      error: row.error ?? null,
+      metadata: row.metadata ? JSON.stringify(row.metadata) : null,
+      created_at: now()
+    });
+  };
+
+  const unsubscribeTerminalAudit = terminalManager.subscribe((event) => {
+    if (event.type === "terminal.start") {
+      writeTerminalAudit({
+        sessionId: event.sessionId,
+        workspaceId: event.workspaceId,
+        eventType: "session_start",
+        status: "accepted",
+        actor: "system"
+      });
+      return;
+    }
+
+    if (event.type === "terminal.exit") {
+      writeTerminalAudit({
+        sessionId: event.sessionId,
+        workspaceId: event.workspaceId,
+        eventType: "session_exit",
+        status: "accepted",
+        actor: "system",
+        exitCode: event.code,
+        signal: event.signal
+      });
+    }
+  });
+
+  app.addHook("onClose", async () => {
+    unsubscribeTerminalAudit();
+  });
 
   app.get("/health", async () => ({ status: "ok" }));
   app.get("/providers", async () => ({ data: listProviders() }));
@@ -411,6 +499,61 @@ export async function registerRoutes(app: FastifyInstance, db: Db, terminalManag
     return { data: row };
   });
 
+  app.get<{ Querystring: TerminalAuditQuery }>("/terminal/audit", async (req) => {
+    const rawLimit = Number(req.query.limit ?? 200);
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 2000) : 200;
+
+    const whereClauses: string[] = [];
+    const params: Array<string | number> = [];
+
+    if (req.query.workspaceId) {
+      whereClauses.push("workspace_id = ?");
+      params.push(req.query.workspaceId);
+    }
+    if (req.query.sessionId) {
+      whereClauses.push("session_id = ?");
+      params.push(req.query.sessionId);
+    }
+    if (req.query.status) {
+      whereClauses.push("status = ?");
+      params.push(req.query.status);
+    }
+    if (req.query.eventType) {
+      whereClauses.push("event_type = ?");
+      params.push(req.query.eventType);
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+    const rows = db
+      .prepare(
+        `SELECT * FROM terminal_audit_logs ${whereSql} ORDER BY created_at DESC LIMIT ?`
+      )
+      .all(...params, limit) as Array<{
+      id: string;
+      session_id: string;
+      workspace_id: string;
+      event_type: string;
+      status: string;
+      actor: string;
+      command: string | null;
+      confirmation_required: number | null;
+      confirmed: number | null;
+      append_newline: number | null;
+      exit_code: number | null;
+      signal: string | null;
+      error: string | null;
+      metadata: string | null;
+      created_at: number;
+    }>;
+
+    return {
+      data: rows.map((row) => ({
+        ...row,
+        metadata: row.metadata ? (JSON.parse(row.metadata) as Record<string, unknown>) : null
+      }))
+    };
+  });
+
   app.get("/terminal/sessions", async () => {
     return { data: terminalManager.listSessions() };
   });
@@ -439,12 +582,32 @@ export async function registerRoutes(app: FastifyInstance, db: Db, terminalManag
       });
     }
 
+    writeTerminalAudit({
+      sessionId: session.id,
+      workspaceId,
+      eventType: "session_start_request",
+      status: "accepted",
+      actor: getRequestActor(req.headers["x-aihub-actor"]),
+      metadata: {
+        shell: session.shell,
+        cwd: session.cwd
+      }
+    });
+
     return { data: session };
   });
 
   app.post<{ Params: { id: string }; Body: TerminalInput }>(
     "/terminal/sessions/:id/input",
     async (req, reply) => {
+      const session = terminalManager.getSession(req.params.id);
+      if (!session) {
+        return reply.code(404).send({ error: "terminal session not found" });
+      }
+
+      const actor = getRequestActor(req.headers["x-aihub-actor"]);
+      const appendNewline = req.body.appendNewline ?? true;
+
       if (!req.body.input && req.body.input !== "") {
         return reply.code(400).send({ error: "input is required" });
       }
@@ -452,6 +615,18 @@ export async function registerRoutes(app: FastifyInstance, db: Db, terminalManag
       if (terminalConfirmRequired) {
         const command = req.body.input.trim();
         if (command.length > 0 && req.body.confirm !== true) {
+          writeTerminalAudit({
+            sessionId: session.id,
+            workspaceId: session.workspaceId,
+            eventType: "command_rejected",
+            status: "rejected",
+            actor,
+            command: req.body.input,
+            confirmationRequired: true,
+            confirmed: false,
+            appendNewline,
+            error: "command confirmation required"
+          });
           return reply.code(409).send({
             error: "command confirmation required",
             confirmationRequired: true,
@@ -461,8 +636,31 @@ export async function registerRoutes(app: FastifyInstance, db: Db, terminalManag
       }
 
       try {
-        terminalManager.writeInput(req.params.id, req.body.input, req.body.appendNewline ?? true);
+        terminalManager.writeInput(req.params.id, req.body.input, appendNewline);
+        writeTerminalAudit({
+          sessionId: session.id,
+          workspaceId: session.workspaceId,
+          eventType: "command_input",
+          status: "accepted",
+          actor,
+          command: req.body.input,
+          confirmationRequired: terminalConfirmRequired && req.body.input.trim().length > 0,
+          confirmed: req.body.confirm === true,
+          appendNewline
+        });
       } catch (error) {
+        writeTerminalAudit({
+          sessionId: session.id,
+          workspaceId: session.workspaceId,
+          eventType: "command_input",
+          status: "error",
+          actor,
+          command: req.body.input,
+          confirmationRequired: terminalConfirmRequired && req.body.input.trim().length > 0,
+          confirmed: req.body.confirm === true,
+          appendNewline,
+          error: error instanceof Error ? error.message : "failed to write to terminal session"
+        });
         return reply.code(404).send({
           error: error instanceof Error ? error.message : "failed to write to terminal session"
         });
@@ -473,9 +671,31 @@ export async function registerRoutes(app: FastifyInstance, db: Db, terminalManag
   );
 
   app.post<{ Params: { id: string } }>("/terminal/sessions/:id/stop", async (req, reply) => {
+    const session = terminalManager.getSession(req.params.id);
+    if (!session) {
+      return reply.code(404).send({ error: "terminal session not found" });
+    }
+
+    const actor = getRequestActor(req.headers["x-aihub-actor"]);
+
     try {
       terminalManager.stopSession(req.params.id);
+      writeTerminalAudit({
+        sessionId: session.id,
+        workspaceId: session.workspaceId,
+        eventType: "session_stop_request",
+        status: "accepted",
+        actor
+      });
     } catch (error) {
+      writeTerminalAudit({
+        sessionId: session.id,
+        workspaceId: session.workspaceId,
+        eventType: "session_stop_request",
+        status: "error",
+        actor,
+        error: error instanceof Error ? error.message : "failed to stop terminal session"
+      });
       return reply.code(404).send({
         error: error instanceof Error ? error.message : "failed to stop terminal session"
       });
@@ -506,4 +726,3 @@ export async function registerRoutes(app: FastifyInstance, db: Db, terminalManag
     }
   );
 }
-  const terminalConfirmRequired = (process.env.TERMINAL_CONFIRM_REQUIRED ?? "true") !== "false";

@@ -44,6 +44,7 @@ Base URL: `http://localhost:3000/v1`
 - `GET /artifacts/:id`
 - `POST /artifacts`
 - `GET /terminal/sessions`
+- `GET /terminal/audit?workspaceId=&sessionId=&status=&eventType=&limit=200`
 - `POST /terminal/sessions`
 - `POST /terminal/sessions/:id/input`
 - `POST /terminal/sessions/:id/stop`
