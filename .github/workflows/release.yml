@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Verify workspace
+        run: corepack pnpm verify
+
+      - name: Build Hub
+        run: corepack pnpm --filter @ai-hub/hub build
+
+      - name: Build Rust runner
+        run: cargo build --release --manifest-path crates/tools-runner/Cargo.toml
+
+      - name: Generate release manifest
+        run: corepack pnpm release:manifest
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-hub-release-assets
+          path: |
+            apps/hub/dist
+            crates/tools-runner/target/release/tools-runner*
+            releases/manifest-*.json

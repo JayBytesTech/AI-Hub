@@ -24,3 +24,7 @@ apps/hub/data/
 Thumbs.db
 .vscode/
 .idea/
+
+# Release manifests
+releases/*.json
+!releases/.gitkeep

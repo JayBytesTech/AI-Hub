@@ -58,3 +58,7 @@ Default dev endpoints:
 ## Configuration
 
 - Config profiles and env validation policy: `Config_Profiles.md`
+
+## Release
+
+- Release packaging and rollback process: `Release_And_Rollback.md`

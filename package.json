@@ -10,7 +10,10 @@
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
-    "package:desktop": "corepack pnpm --filter @ai-hub/hub build && cargo build --release --manifest-path crates/tools-runner/Cargo.toml && corepack pnpm --filter @ai-hub/desktop tauri:build"
+    "package:desktop": "corepack pnpm --filter @ai-hub/hub build && cargo build --release --manifest-path crates/tools-runner/Cargo.toml && corepack pnpm --filter @ai-hub/desktop tauri:build",
+    "release:manifest": "node ./scripts/release/generateManifest.mjs",
+    "release:prepare": "pnpm verify && pnpm package:desktop && pnpm release:manifest",
+    "rollback:plan": "node ./scripts/release/rollbackPlan.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
