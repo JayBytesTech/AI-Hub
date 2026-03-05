@@ -50,3 +50,11 @@ Default dev endpoints:
 ## Data Lifecycle
 
 - Migration and retention policy: `Data_Lifecycle_And_Migrations.md`
+
+## Observability
+
+- Logging, correlation IDs, and metrics baseline: `Observability_Baseline.md`
+
+## Configuration
+
+- Config profiles and env validation policy: `Config_Profiles.md`

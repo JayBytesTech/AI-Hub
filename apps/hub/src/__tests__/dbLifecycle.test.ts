@@ -103,7 +103,14 @@ describe("db lifecycle", () => {
       newTs
     );
 
-    runRetentionCleanup(db, now);
+    runRetentionCleanup(
+      db,
+      {
+        artifactsDays: 7,
+        terminalAuditDays: 7
+      },
+      now
+    );
 
     const artifactIds = (
       db.prepare("SELECT id FROM artifacts ORDER BY id ASC").all() as Array<{ id: string }>

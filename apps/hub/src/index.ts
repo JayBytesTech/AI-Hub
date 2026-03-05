@@ -1,7 +1,9 @@
 import { buildApp } from "./app.js";
+import { getHubConfig } from "./config.js";
 
-const port = Number(process.env.HUB_PORT ?? 3000);
-const host = process.env.HUB_HOST ?? "0.0.0.0";
+const config = getHubConfig();
+const port = config.server.port;
+const host = config.server.host;
 
 const app = await buildApp({ logger: true });
 

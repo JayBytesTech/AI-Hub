@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
+import { hubMetrics } from "../observability/metrics.js";
 import { getProvider } from "../providers/index.js";
 import { ProviderError } from "../providers/reliability.js";
 import type { TerminalManager } from "../terminal/manager.js";
@@ -17,6 +18,7 @@ type StreamRequest = {
 export async function registerWs(app: FastifyInstance, terminalManager: TerminalManager, db: Db) {
   app.get("/stream", { websocket: true }, (socket) => {
     socket.on("message", async (raw: unknown) => {
+      const startedAt = Date.now();
       let payload: StreamRequest = {};
       try {
         const text =
@@ -34,6 +36,15 @@ export async function registerWs(app: FastifyInstance, terminalManager: Terminal
       const runId = payload.runId ?? randomUUID();
       let prompt = payload.prompt ?? "";
       const providerName = payload.provider;
+      app.log.info(
+        {
+          event: "ws.chat.start",
+          runId,
+          provider: providerName ?? "mock",
+          workspaceId: payload.workspaceId ?? null
+        },
+        "chat stream started"
+      );
       try {
         const artifactIds = Array.isArray(payload.artifactIds) ? payload.artifactIds : [];
         if (artifactIds.length > 0) {
@@ -84,6 +95,22 @@ export async function registerWs(app: FastifyInstance, terminalManager: Terminal
         }
 
         socket.send(JSON.stringify({ type: "chat.stream.end", runId }));
+        hubMetrics.increment("ws_chat_stream_total", {
+          provider: provider.name,
+          outcome: "success"
+        });
+        hubMetrics.observe("ws_chat_stream_duration_ms", Date.now() - startedAt, {
+          provider: provider.name
+        });
+        app.log.info(
+          {
+            event: "ws.chat.end",
+            runId,
+            provider: provider.name,
+            durationMs: Date.now() - startedAt
+          },
+          "chat stream completed"
+        );
       } catch (error) {
         const normalized =
           error instanceof ProviderError
@@ -111,6 +138,26 @@ export async function registerWs(app: FastifyInstance, terminalManager: Terminal
             statusCode: normalized.statusCode,
             provider: normalized.provider
           })
+        );
+        hubMetrics.increment("ws_chat_stream_total", {
+          provider: normalized.provider,
+          outcome: "error",
+          errorCode: normalized.code
+        });
+        hubMetrics.observe("ws_chat_stream_duration_ms", Date.now() - startedAt, {
+          provider: normalized.provider
+        });
+        app.log.warn(
+          {
+            event: "ws.chat.error",
+            runId,
+            provider: normalized.provider,
+            errorCode: normalized.code,
+            retryable: normalized.retryable,
+            statusCode: normalized.statusCode,
+            durationMs: Date.now() - startedAt
+          },
+          normalized.message
         );
       }
     });

@@ -1,3 +1,5 @@
+import { getHubConfig } from "../config.js";
+
 type CircuitState = {
   consecutiveFailures: number;
   openedAt: number | null;
@@ -17,18 +19,14 @@ export function resetReliabilityStateForTests() {
   circuitByProvider.clear();
 }
 
-function parseIntEnv(name: string, fallback: number, minValue: number) {
-  const raw = Number(process.env[name]);
-  return Number.isFinite(raw) && raw >= minValue ? Math.floor(raw) : fallback;
-}
-
 function config(): ReliabilityConfig {
+  const reliability = getHubConfig().reliability;
   return {
-    timeoutMs: parseIntEnv("PROVIDER_REQUEST_TIMEOUT_MS", 20000, 1),
-    retries: parseIntEnv("PROVIDER_REQUEST_RETRIES", 2, 0),
-    retryBaseDelayMs: parseIntEnv("PROVIDER_RETRY_BASE_DELAY_MS", 300, 1),
-    circuitFailureThreshold: parseIntEnv("PROVIDER_CIRCUIT_FAILURE_THRESHOLD", 3, 1),
-    circuitCooldownMs: parseIntEnv("PROVIDER_CIRCUIT_COOLDOWN_MS", 30000, 1)
+    timeoutMs: reliability.requestTimeoutMs,
+    retries: reliability.requestRetries,
+    retryBaseDelayMs: reliability.retryBaseDelayMs,
+    circuitFailureThreshold: reliability.circuitFailureThreshold,
+    circuitCooldownMs: reliability.circuitCooldownMs
   };
 }
 

@@ -1,8 +1,8 @@
 import type { ChatProvider, StreamRequest } from "./types.js";
+import { getHubConfig } from "../config.js";
 import { ProviderError, executeWithReliability, providerHttpError } from "./reliability.js";
 
 const CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
-const CLAUDE_MODEL = process.env.CLAUDE_MODEL ?? "claude-3-5-sonnet-latest";
 
 function chunkText(text: string) {
   return text.match(/\S+\s*/g) ?? [text];
@@ -12,7 +12,8 @@ export class ClaudeProvider implements ChatProvider {
   readonly name = "claude";
 
   async *stream(request: StreamRequest): AsyncGenerator<string, void, void> {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const cfg = getHubConfig();
+    const apiKey = cfg.providers.anthropic.apiKey;
     if (!apiKey) {
       throw new Error("ANTHROPIC_API_KEY is not set");
     }
@@ -26,7 +27,7 @@ export class ClaudeProvider implements ChatProvider {
           "anthropic-version": "2023-06-01"
         },
         body: JSON.stringify({
-          model: CLAUDE_MODEL,
+          model: cfg.providers.anthropic.model,
           max_tokens: 1024,
           messages: [{ role: "user", content: request.prompt }]
         }),

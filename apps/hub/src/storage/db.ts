@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
+import { getHubConfig } from "../config.js";
 
 const storageDir = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_DB_PATH = path.resolve(storageDir, "../../data/hub.db");
@@ -11,18 +12,6 @@ type RetentionPolicy = {
   artifactsDays: number;
   terminalAuditDays: number;
 };
-
-function parseRetentionDays(name: string) {
-  const raw = Number(process.env[name] ?? "0");
-  return Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 0;
-}
-
-function getRetentionPolicy(): RetentionPolicy {
-  return {
-    artifactsDays: parseRetentionDays("HUB_RETENTION_ARTIFACT_DAYS"),
-    terminalAuditDays: parseRetentionDays("HUB_RETENTION_TERMINAL_AUDIT_DAYS")
-  };
-}
 
 function resolveMigrationsDir() {
   const candidates = [
@@ -72,8 +61,7 @@ function runMigrations(db: Database.Database) {
   }
 }
 
-export function runRetentionCleanup(db: Database.Database, nowMs = Date.now()) {
-  const policy = getRetentionPolicy();
+export function runRetentionCleanup(db: Database.Database, policy: RetentionPolicy, nowMs = Date.now()) {
   if (policy.artifactsDays > 0) {
     const cutoff = nowMs - policy.artifactsDays * 24 * 60 * 60 * 1000;
     db.prepare("DELETE FROM artifacts WHERE created_at < ?").run(cutoff);
@@ -85,7 +73,8 @@ export function runRetentionCleanup(db: Database.Database, nowMs = Date.now()) {
 }
 
 export function createDb(dbPathArg?: string) {
-  const dbPath = dbPathArg ?? process.env.HUB_DB_PATH ?? DEFAULT_DB_PATH;
+  const config = getHubConfig();
+  const dbPath = dbPathArg ?? config.storage.dbPath ?? DEFAULT_DB_PATH;
   if (dbPath !== ":memory:") {
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   }
@@ -93,7 +82,7 @@ export function createDb(dbPathArg?: string) {
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   runMigrations(db);
-  runRetentionCleanup(db);
+  runRetentionCleanup(db, config.storage.retention);
   return db;
 }
 

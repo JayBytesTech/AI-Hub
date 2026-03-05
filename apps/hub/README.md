@@ -12,7 +12,10 @@ pnpm --filter @ai-hub/hub dev
 Optional env vars:
 - `HUB_PORT` (default `3000`)
 - `HUB_HOST` (default `0.0.0.0`)
+- `HUB_PROFILE` (one of `development`, `test`, `production`; default from `NODE_ENV` or `development`)
 - `HUB_DB_PATH` (default `apps/hub/data/hub.db`)
+- `HUB_ENABLED_PROVIDERS` (comma-separated; default `mock,claude,gemini,chatgpt`)
+- `HUB_REQUIRE_PROVIDER_SECRETS` (default `true` in `production`, else `false`)
 - `TERMINAL_CONFIRM_REQUIRED` (default `true`)
 - `ANTHROPIC_API_KEY` (required for `claude`)
 - `CLAUDE_MODEL` (default `claude-3-5-sonnet-latest`)
@@ -35,6 +38,7 @@ Optional env vars:
 Base URL: `http://localhost:3000/v1`
 
 - `GET /health`
+- `GET /metrics`
 - `GET /workspaces`
 - `GET /security/policy`
 - `POST /workspaces`
@@ -77,8 +81,16 @@ Current provider adapters:
 - `claude`: Anthropic Messages API adapter.
 - `gemini`: Google Generative Language API adapter.
 - `chatgpt`: OpenAI Chat Completions adapter.
+Enabled providers are controlled by `HUB_ENABLED_PROVIDERS`.
 When `TERMINAL_CONFIRM_REQUIRED=true`, terminal input requests must include:
 - `{"input":"<command>","confirm":true}`
+
+## Observability
+
+- HTTP responses include `x-request-id`.
+- Send your own `x-request-id` header to correlate client and hub logs.
+- Metrics snapshot endpoint:
+  - `GET /v1/metrics`
 
 ## Storage Migrations
 

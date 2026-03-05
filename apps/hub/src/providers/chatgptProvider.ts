@@ -1,7 +1,7 @@
 import type { ChatProvider, StreamRequest } from "./types.js";
+import { getHubConfig } from "../config.js";
 import { ProviderError, executeWithReliability, providerHttpError } from "./reliability.js";
 
-const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 
 function chunkText(text: string) {
@@ -12,7 +12,8 @@ export class ChatGptProvider implements ChatProvider {
   readonly name = "chatgpt";
 
   async *stream(request: StreamRequest): AsyncGenerator<string, void, void> {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const cfg = getHubConfig();
+    const apiKey = cfg.providers.openai.apiKey;
     if (!apiKey) {
       throw new Error("OPENAI_API_KEY is not set");
     }
@@ -25,7 +26,7 @@ export class ChatGptProvider implements ChatProvider {
           authorization: `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: OPENAI_MODEL,
+          model: cfg.providers.openai.model,
           messages: [{ role: "user", content: request.prompt }]
         }),
         signal

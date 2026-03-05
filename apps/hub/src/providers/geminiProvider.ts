@@ -1,7 +1,6 @@
 import type { ChatProvider, StreamRequest } from "./types.js";
+import { getHubConfig } from "../config.js";
 import { ProviderError, executeWithReliability, providerHttpError } from "./reliability.js";
-
-const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-1.5-flash";
 
 function chunkText(text: string) {
   return text.match(/\S+\s*/g) ?? [text];
@@ -11,13 +10,14 @@ export class GeminiProvider implements ChatProvider {
   readonly name = "gemini";
 
   async *stream(request: StreamRequest): AsyncGenerator<string, void, void> {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const cfg = getHubConfig();
+    const apiKey = cfg.providers.gemini.apiKey;
     if (!apiKey) {
       throw new Error("GEMINI_API_KEY is not set");
     }
 
     const url =
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}` +
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.providers.gemini.model)}` +
       `:generateContent?key=${encodeURIComponent(apiKey)}`;
 
     const text = await executeWithReliability(this.name, async (signal) => {

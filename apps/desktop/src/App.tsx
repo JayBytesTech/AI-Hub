@@ -24,13 +24,32 @@ export function App() {
   const [isStreaming, setIsStreaming] = useState(false);
 
   useEffect(() => {
-    fetch(`${HUB_HTTP_BASE}/health`)
-      .then((resp) => (resp.ok ? resp.json() : Promise.reject()))
+    const healthRequestId = uniqueId();
+    fetch(`${HUB_HTTP_BASE}/health`, {
+      headers: { "x-request-id": healthRequestId }
+    })
+      .then((resp) => {
+        const responseRequestId = resp.headers.get("x-request-id");
+        if (responseRequestId) {
+          // Keep a lightweight trace breadcrumb in the console for debug sessions.
+          console.debug(`[hub] health requestId=${responseRequestId}`);
+        }
+        return resp.ok ? resp.json() : Promise.reject();
+      })
       .then(() => setHealth("ok"))
       .catch(() => setHealth("down"));
 
-    fetch(`${HUB_HTTP_BASE}/providers`)
-      .then((resp) => resp.json() as Promise<ProvidersResponse>)
+    const providersRequestId = uniqueId();
+    fetch(`${HUB_HTTP_BASE}/providers`, {
+      headers: { "x-request-id": providersRequestId }
+    })
+      .then((resp) => {
+        const responseRequestId = resp.headers.get("x-request-id");
+        if (responseRequestId) {
+          console.debug(`[hub] providers requestId=${responseRequestId}`);
+        }
+        return resp.json() as Promise<ProvidersResponse>;
+      })
       .then((data) => {
         setProviders(data.data);
         if (data.data.length > 0) {

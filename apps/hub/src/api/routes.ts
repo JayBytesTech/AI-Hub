@@ -3,6 +3,8 @@ import type { Db } from "../storage/db.js";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { getHubConfig } from "../config.js";
+import { hubMetrics } from "../observability/metrics.js";
 import { listProviders } from "../providers/index.js";
 import type { TerminalManager } from "../terminal/manager.js";
 
@@ -58,37 +60,6 @@ function isWithinRoot(root: string, target: string) {
   return target === root || target.startsWith(`${root}${path.sep}`);
 }
 
-function parseCsvList(raw: string | undefined) {
-  if (!raw) {
-    return [];
-  }
-  return raw
-    .split(",")
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
-}
-
-function parseSecurityPolicy(): SecurityPolicy {
-  const workspaceAllowedRoots = parseCsvList(process.env.HUB_WORKSPACE_ALLOWED_ROOTS).map((root) =>
-    path.resolve(root)
-  );
-  const terminalBlockedPatterns = parseCsvList(process.env.TERMINAL_BLOCKLIST_PATTERNS)
-    .map((pattern) => {
-      try {
-        return new RegExp(pattern, "i");
-      } catch {
-        return null;
-      }
-    })
-    .filter((pattern): pattern is RegExp => pattern !== null);
-
-  return {
-    terminalConfirmRequired: (process.env.TERMINAL_CONFIRM_REQUIRED ?? "true") !== "false",
-    workspaceAllowedRoots,
-    terminalBlockedPatterns
-  };
-}
-
 async function resolveWorkspaceRoot(rootPath: string) {
   const realRoot = await fs.realpath(rootPath);
   const stat = await fs.stat(realRoot);
@@ -109,7 +80,20 @@ async function resolveWorkspacePath(workspaceRoot: string, requestedPath: string
 }
 
 export async function registerRoutes(app: FastifyInstance, db: Db, terminalManager: TerminalManager) {
-  const securityPolicy = parseSecurityPolicy();
+  const config = getHubConfig();
+  const securityPolicy: SecurityPolicy = {
+    terminalConfirmRequired: config.security.terminalConfirmRequired,
+    workspaceAllowedRoots: config.security.workspaceAllowedRoots.map((root) => path.resolve(root)),
+    terminalBlockedPatterns: config.security.terminalBlockedPatterns
+      .map((pattern) => {
+        try {
+          return new RegExp(pattern, "i");
+        } catch {
+          return null;
+        }
+      })
+      .filter((pattern): pattern is RegExp => pattern !== null)
+  };
   const workspaceByIdStmt = db.prepare("SELECT * FROM workspaces WHERE id = ?");
   const insertTerminalAuditStmt = db.prepare(
     "INSERT INTO terminal_audit_logs (id, session_id, workspace_id, event_type, status, actor, command, confirmation_required, confirmed, append_newline, exit_code, signal, error, metadata, created_at) VALUES (@id, @session_id, @workspace_id, @event_type, @status, @actor, @command, @confirmation_required, @confirmed, @append_newline, @exit_code, @signal, @error, @metadata, @created_at)"
@@ -218,6 +202,7 @@ export async function registerRoutes(app: FastifyInstance, db: Db, terminalManag
 
   app.get("/health", async () => ({ status: "ok" }));
   app.get("/providers", async () => ({ data: listProviders() }));
+  app.get("/metrics", async () => ({ data: hubMetrics.snapshot() }));
   app.get("/security/policy", async () => ({
     data: {
       terminalConfirmRequired: securityPolicy.terminalConfirmRequired,
