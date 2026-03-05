@@ -1,4 +1,5 @@
 import type { ChatProvider, StreamRequest } from "./types.js";
+import { ProviderError, executeWithReliability, providerHttpError } from "./reliability.js";
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-1.5-flash";
 
@@ -19,32 +20,45 @@ export class GeminiProvider implements ChatProvider {
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}` +
       `:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: request.prompt }] }]
-      })
+    const text = await executeWithReliability(this.name, async (signal) => {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: request.prompt }] }]
+        }),
+        signal
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw providerHttpError(this.name, response.status, body);
+      }
+
+      const payload = (await response.json()) as {
+        candidates?: Array<{
+          content?: {
+            parts?: Array<{ text?: string }>;
+          };
+        }>;
+      };
+
+      const content =
+        payload.candidates?.[0]?.content?.parts
+          ?.map((part) => part.text ?? "")
+          .join("")
+          .trim() ?? "";
+
+      if (!content) {
+        throw new ProviderError({
+          provider: this.name,
+          code: "empty_response",
+          message: "Gemini returned an empty response",
+          retryable: false
+        });
+      }
+      return content;
     });
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Gemini request failed (${response.status}): ${body}`);
-    }
-
-    const payload = (await response.json()) as {
-      candidates?: Array<{
-        content?: {
-          parts?: Array<{ text?: string }>;
-        };
-      }>;
-    };
-
-    const text =
-      payload.candidates?.[0]?.content?.parts
-        ?.map((part) => part.text ?? "")
-        .join("")
-        .trim() ?? "";
 
     if (!text) {
       throw new Error("Gemini returned an empty response");
@@ -55,4 +69,3 @@ export class GeminiProvider implements ChatProvider {
     }
   }
 }
-

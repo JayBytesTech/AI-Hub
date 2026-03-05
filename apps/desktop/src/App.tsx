@@ -76,6 +76,9 @@ export function App() {
         runId?: string;
         content?: string;
         error?: string;
+        errorCode?: string;
+        retryable?: boolean;
+        provider?: string;
       };
 
       if (eventData.runId !== runId) {
@@ -92,10 +95,22 @@ export function App() {
 
       if (eventData.type === "chat.stream.end" || eventData.type === "chat.stream.error") {
         if (eventData.type === "chat.stream.error") {
+          const details = [
+            eventData.provider ? `provider=${eventData.provider}` : null,
+            eventData.errorCode ? `code=${eventData.errorCode}` : null,
+            eventData.retryable !== undefined ? `retryable=${String(eventData.retryable)}` : null
+          ]
+            .filter((part) => part !== null)
+            .join(", ");
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === assistantId
-                ? { ...msg, content: `${msg.content}\n[error] ${eventData.error ?? "unknown error"}` }
+                ? {
+                    ...msg,
+                    content: `${msg.content}\n[error] ${eventData.error ?? "unknown error"}${
+                      details.length > 0 ? ` (${details})` : ""
+                    }`
+                  }
                 : msg
             )
           );
@@ -162,4 +177,3 @@ export function App() {
     </div>
   );
 }
-

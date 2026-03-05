@@ -20,6 +20,11 @@ Optional env vars:
 - `GEMINI_MODEL` (default `gemini-1.5-flash`)
 - `OPENAI_API_KEY` (required for `chatgpt`)
 - `OPENAI_MODEL` (default `gpt-4o-mini`)
+- `PROVIDER_REQUEST_TIMEOUT_MS` (default `20000`)
+- `PROVIDER_REQUEST_RETRIES` (default `2`)
+- `PROVIDER_RETRY_BASE_DELAY_MS` (default `300`)
+- `PROVIDER_CIRCUIT_FAILURE_THRESHOLD` (default `3`)
+- `PROVIDER_CIRCUIT_COOLDOWN_MS` (default `30000`)
 
 ## API
 

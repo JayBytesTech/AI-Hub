@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-hub/schemas/hub-ws-event.schema.json",
+  "title": "HubWsEvent",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "runId", "provider"],
+      "properties": {
+        "type": { "const": "chat.stream.start" },
+        "runId": { "type": "string", "minLength": 1 },
+        "provider": { "type": "string", "minLength": 1 }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "runId", "content"],
+      "properties": {
+        "type": { "const": "chat.stream.delta" },
+        "runId": { "type": "string", "minLength": 1 },
+        "content": { "type": "string" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "runId"],
+      "properties": {
+        "type": { "const": "chat.stream.end" },
+        "runId": { "type": "string", "minLength": 1 }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "runId", "error"],
+      "properties": {
+        "type": { "const": "chat.stream.error" },
+        "runId": { "type": "string", "minLength": 1 },
+        "error": { "type": "string", "minLength": 1 },
+        "errorCode": { "type": "string", "minLength": 1 },
+        "retryable": { "type": "boolean" },
+        "statusCode": { "type": ["integer", "null"] },
+        "provider": { "type": "string", "minLength": 1 }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "sessionId", "workspaceId", "timestamp"],
+      "properties": {
+        "type": { "const": "terminal.start" },
+        "sessionId": { "type": "string", "minLength": 1 },
+        "workspaceId": { "type": "string", "minLength": 1 },
+        "timestamp": { "type": "integer" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "sessionId", "stream", "chunk", "timestamp"],
+      "properties": {
+        "type": { "const": "terminal.output" },
+        "sessionId": { "type": "string", "minLength": 1 },
+        "stream": { "enum": ["stdout", "stderr"] },
+        "chunk": { "type": "string" },
+        "timestamp": { "type": "integer" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "sessionId", "workspaceId", "code", "signal", "timestamp"],
+      "properties": {
+        "type": { "const": "terminal.exit" },
+        "sessionId": { "type": "string", "minLength": 1 },
+        "workspaceId": { "type": "string", "minLength": 1 },
+        "code": { "type": ["integer", "null"] },
+        "signal": { "type": ["string", "null"] },
+        "timestamp": { "type": "integer" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "sessionId", "output"],
+      "properties": {
+        "type": { "const": "terminal.backlog" },
+        "sessionId": { "type": "string", "minLength": 1 },
+        "output": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["stream", "chunk", "timestamp"],
+            "properties": {
+              "stream": { "enum": ["stdout", "stderr"] },
+              "chunk": { "type": "string" },
+              "timestamp": { "type": "integer" }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

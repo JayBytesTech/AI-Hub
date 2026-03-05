@@ -37,3 +37,8 @@ Default dev endpoints:
 - `pnpm build`: build all JS/TS workspaces
 - `pnpm test`: test all JS/TS workspaces
 - `pnpm package:desktop`: build and package the Tauri desktop app with bundled hub/runner resources
+
+## Contract Stability
+
+- API/WS contract policy: `Contract_Versioning.md`
+- Shared contract schemas: `packages/shared/schemas/schemas/`

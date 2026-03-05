@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChatGptProvider } from "../providers/chatgptProvider.js";
 import { ClaudeProvider } from "../providers/claudeProvider.js";
 import { GeminiProvider } from "../providers/geminiProvider.js";
+import { resetReliabilityStateForTests } from "../providers/reliability.js";
 
 const request = { runId: "r1", prompt: "hello" };
 
@@ -10,6 +11,11 @@ afterEach(() => {
   delete process.env.OPENAI_API_KEY;
   delete process.env.ANTHROPIC_API_KEY;
   delete process.env.GEMINI_API_KEY;
+  delete process.env.PROVIDER_REQUEST_RETRIES;
+  delete process.env.PROVIDER_REQUEST_TIMEOUT_MS;
+  delete process.env.PROVIDER_CIRCUIT_FAILURE_THRESHOLD;
+  delete process.env.PROVIDER_CIRCUIT_COOLDOWN_MS;
+  resetReliabilityStateForTests();
 });
 
 async function collect(stream: AsyncGenerator<string, void, void>) {
@@ -79,5 +85,46 @@ describe("provider adapters", () => {
     const provider = new GeminiProvider();
     await expect(collect(provider.stream(request))).resolves.toBe("Hello from gemini");
   });
-});
 
+  it("chatgpt retries transient upstream errors", async () => {
+    process.env.OPENAI_API_KEY = "test";
+    process.env.PROVIDER_REQUEST_RETRIES = "1";
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        text: async () => "unavailable"
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: "Recovered response" } }] })
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const provider = new ChatGptProvider();
+    await expect(collect(provider.stream(request))).resolves.toBe("Recovered response");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("opens circuit breaker after repeated failures", async () => {
+    process.env.OPENAI_API_KEY = "test";
+    process.env.PROVIDER_REQUEST_RETRIES = "0";
+    process.env.PROVIDER_CIRCUIT_FAILURE_THRESHOLD = "2";
+    process.env.PROVIDER_CIRCUIT_COOLDOWN_MS = "60000";
+
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 503,
+      text: async () => "down"
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const provider = new ChatGptProvider();
+    await expect(collect(provider.stream(request))).rejects.toThrow("upstream failed");
+    await expect(collect(provider.stream(request))).rejects.toThrow("upstream failed");
+    await expect(collect(provider.stream(request))).rejects.toThrow("circuit is open");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});

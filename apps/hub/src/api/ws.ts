@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
 import { getProvider } from "../providers/index.js";
+import { ProviderError } from "../providers/reliability.js";
 import type { TerminalManager } from "../terminal/manager.js";
 import type { Db } from "../storage/db.js";
 
@@ -32,6 +33,7 @@ export async function registerWs(app: FastifyInstance, terminalManager: Terminal
 
       const runId = payload.runId ?? randomUUID();
       let prompt = payload.prompt ?? "";
+      const providerName = payload.provider;
       try {
         const artifactIds = Array.isArray(payload.artifactIds) ? payload.artifactIds : [];
         if (artifactIds.length > 0) {
@@ -63,7 +65,7 @@ export async function registerWs(app: FastifyInstance, terminalManager: Terminal
           }
         }
 
-        const provider = getProvider(payload.provider);
+        const provider = getProvider(providerName);
         socket.send(JSON.stringify({ type: "chat.stream.start", runId, provider: provider.name }));
 
         for await (const token of provider.stream({
@@ -83,11 +85,31 @@ export async function registerWs(app: FastifyInstance, terminalManager: Terminal
 
         socket.send(JSON.stringify({ type: "chat.stream.end", runId }));
       } catch (error) {
+        const normalized =
+          error instanceof ProviderError
+            ? {
+                message: error.message,
+                code: error.code,
+                retryable: error.retryable,
+                statusCode: error.statusCode,
+                provider: error.provider
+              }
+            : {
+                message: error instanceof Error ? error.message : "provider streaming failed",
+                code: "unknown",
+                retryable: false,
+                statusCode: null,
+                provider: providerName ?? "unknown"
+              };
         socket.send(
           JSON.stringify({
             type: "chat.stream.error",
             runId,
-            error: error instanceof Error ? error.message : "provider streaming failed"
+            error: normalized.message,
+            errorCode: normalized.code,
+            retryable: normalized.retryable,
+            statusCode: normalized.statusCode,
+            provider: normalized.provider
           })
         );
       }

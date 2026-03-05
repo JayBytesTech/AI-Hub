@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-hub/schemas/hub-terminal-audit-response.schema.json",
+  "title": "HubTerminalAuditResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["data"],
+  "properties": {
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "session_id",
+          "workspace_id",
+          "event_type",
+          "status",
+          "actor",
+          "created_at"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "session_id": { "type": "string", "minLength": 1 },
+          "workspace_id": { "type": "string", "minLength": 1 },
+          "event_type": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "minLength": 1 },
+          "actor": { "type": "string", "minLength": 1 },
+          "command": { "type": ["string", "null"] },
+          "confirmation_required": { "type": ["integer", "null"] },
+          "confirmed": { "type": ["integer", "null"] },
+          "append_newline": { "type": ["integer", "null"] },
+          "exit_code": { "type": ["integer", "null"] },
+          "signal": { "type": ["string", "null"] },
+          "error": { "type": ["string", "null"] },
+          "metadata": { "type": ["object", "null"] },
+          "created_at": { "type": "integer" }
+        }
+      }
+    }
+  }
+}
