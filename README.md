@@ -42,3 +42,7 @@ Default dev endpoints:
 
 - API/WS contract policy: `Contract_Versioning.md`
 - Shared contract schemas: `packages/shared/schemas/schemas/`
+
+## Security
+
+- Security model and trust boundaries: `Security_Model.md`

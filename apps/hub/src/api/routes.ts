@@ -40,7 +40,11 @@ type TerminalAuditQuery = {
   limit?: string;
 };
 
-const terminalConfirmRequired = (process.env.TERMINAL_CONFIRM_REQUIRED ?? "true") !== "false";
+type SecurityPolicy = {
+  terminalConfirmRequired: boolean;
+  workspaceAllowedRoots: string[];
+  terminalBlockedPatterns: RegExp[];
+};
 
 function newId() {
   return randomUUID();
@@ -52,6 +56,37 @@ function now() {
 
 function isWithinRoot(root: string, target: string) {
   return target === root || target.startsWith(`${root}${path.sep}`);
+}
+
+function parseCsvList(raw: string | undefined) {
+  if (!raw) {
+    return [];
+  }
+  return raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+function parseSecurityPolicy(): SecurityPolicy {
+  const workspaceAllowedRoots = parseCsvList(process.env.HUB_WORKSPACE_ALLOWED_ROOTS).map((root) =>
+    path.resolve(root)
+  );
+  const terminalBlockedPatterns = parseCsvList(process.env.TERMINAL_BLOCKLIST_PATTERNS)
+    .map((pattern) => {
+      try {
+        return new RegExp(pattern, "i");
+      } catch {
+        return null;
+      }
+    })
+    .filter((pattern): pattern is RegExp => pattern !== null);
+
+  return {
+    terminalConfirmRequired: (process.env.TERMINAL_CONFIRM_REQUIRED ?? "true") !== "false",
+    workspaceAllowedRoots,
+    terminalBlockedPatterns
+  };
 }
 
 async function resolveWorkspaceRoot(rootPath: string) {
@@ -74,6 +109,7 @@ async function resolveWorkspacePath(workspaceRoot: string, requestedPath: string
 }
 
 export async function registerRoutes(app: FastifyInstance, db: Db, terminalManager: TerminalManager) {
+  const securityPolicy = parseSecurityPolicy();
   const workspaceByIdStmt = db.prepare("SELECT * FROM workspaces WHERE id = ?");
   const insertTerminalAuditStmt = db.prepare(
     "INSERT INTO terminal_audit_logs (id, session_id, workspace_id, event_type, status, actor, command, confirmation_required, confirmed, append_newline, exit_code, signal, error, metadata, created_at) VALUES (@id, @session_id, @workspace_id, @event_type, @status, @actor, @command, @confirmation_required, @confirmed, @append_newline, @exit_code, @signal, @error, @metadata, @created_at)"
@@ -92,6 +128,24 @@ export async function registerRoutes(app: FastifyInstance, db: Db, terminalManag
     }
     const trimmed = rawActor.trim();
     return trimmed.length > 0 ? trimmed.slice(0, 120) : "local-user";
+  };
+
+  const isWorkspaceRootAllowed = (resolvedRootPath: string) => {
+    if (securityPolicy.workspaceAllowedRoots.length === 0) {
+      return true;
+    }
+    return securityPolicy.workspaceAllowedRoots.some((allowedRoot) =>
+      isWithinRoot(allowedRoot, resolvedRootPath)
+    );
+  };
+
+  const getBlockedPattern = (command: string) => {
+    for (const pattern of securityPolicy.terminalBlockedPatterns) {
+      if (pattern.test(command)) {
+        return pattern.source;
+      }
+    }
+    return null;
   };
 
   const writeTerminalAudit = (row: {
@@ -164,6 +218,13 @@ export async function registerRoutes(app: FastifyInstance, db: Db, terminalManag
 
   app.get("/health", async () => ({ status: "ok" }));
   app.get("/providers", async () => ({ data: listProviders() }));
+  app.get("/security/policy", async () => ({
+    data: {
+      terminalConfirmRequired: securityPolicy.terminalConfirmRequired,
+      workspaceAllowedRoots: securityPolicy.workspaceAllowedRoots,
+      terminalBlockedPatterns: securityPolicy.terminalBlockedPatterns.map((pattern) => pattern.source)
+    }
+  }));
 
   app.get("/workspaces", async () => {
     const rows = db.prepare("SELECT * FROM workspaces ORDER BY created_at DESC").all();
@@ -190,6 +251,12 @@ export async function registerRoutes(app: FastifyInstance, db: Db, terminalManag
     } catch (error) {
       return reply.code(400).send({
         error: error instanceof Error ? error.message : "invalid workspace rootPath"
+      });
+    }
+    if (!isWorkspaceRootAllowed(resolvedRootPath)) {
+      return reply.code(403).send({
+        error: "workspace rootPath is outside allowed roots",
+        allowedRoots: securityPolicy.workspaceAllowedRoots
       });
     }
 
@@ -612,8 +679,31 @@ export async function registerRoutes(app: FastifyInstance, db: Db, terminalManag
         return reply.code(400).send({ error: "input is required" });
       }
 
-      if (terminalConfirmRequired) {
-        const command = req.body.input.trim();
+      const command = req.body.input.trim();
+      if (command.length > 0) {
+        const blockedPattern = getBlockedPattern(command);
+        if (blockedPattern) {
+          writeTerminalAudit({
+            sessionId: session.id,
+            workspaceId: session.workspaceId,
+            eventType: "command_blocked",
+            status: "rejected",
+            actor,
+            command: req.body.input,
+            confirmationRequired: securityPolicy.terminalConfirmRequired,
+            confirmed: req.body.confirm === true,
+            appendNewline,
+            error: "command blocked by terminal policy",
+            metadata: { blockedPattern }
+          });
+          return reply.code(403).send({
+            error: "command blocked by terminal policy",
+            blocked: true
+          });
+        }
+      }
+
+      if (securityPolicy.terminalConfirmRequired) {
         if (command.length > 0 && req.body.confirm !== true) {
           writeTerminalAudit({
             sessionId: session.id,
@@ -644,7 +734,7 @@ export async function registerRoutes(app: FastifyInstance, db: Db, terminalManag
           status: "accepted",
           actor,
           command: req.body.input,
-          confirmationRequired: terminalConfirmRequired && req.body.input.trim().length > 0,
+          confirmationRequired: securityPolicy.terminalConfirmRequired && command.length > 0,
           confirmed: req.body.confirm === true,
           appendNewline
         });
@@ -656,7 +746,7 @@ export async function registerRoutes(app: FastifyInstance, db: Db, terminalManag
           status: "error",
           actor,
           command: req.body.input,
-          confirmationRequired: terminalConfirmRequired && req.body.input.trim().length > 0,
+          confirmationRequired: securityPolicy.terminalConfirmRequired && command.length > 0,
           confirmed: req.body.confirm === true,
           appendNewline,
           error: error instanceof Error ? error.message : "failed to write to terminal session"

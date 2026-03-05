@@ -25,6 +25,8 @@ Optional env vars:
 - `PROVIDER_RETRY_BASE_DELAY_MS` (default `300`)
 - `PROVIDER_CIRCUIT_FAILURE_THRESHOLD` (default `3`)
 - `PROVIDER_CIRCUIT_COOLDOWN_MS` (default `30000`)
+- `HUB_WORKSPACE_ALLOWED_ROOTS` (optional comma-separated absolute roots)
+- `TERMINAL_BLOCKLIST_PATTERNS` (optional comma-separated regex patterns)
 
 ## API
 
@@ -32,6 +34,7 @@ Base URL: `http://localhost:3000/v1`
 
 - `GET /health`
 - `GET /workspaces`
+- `GET /security/policy`
 - `POST /workspaces`
 - `GET /workspaces/:id`
 - `GET /workspaces/:id/files?path=.`
