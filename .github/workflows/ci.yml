@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  js:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install JS dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Build Hub
+        run: corepack pnpm --filter @ai-hub/hub build
+
+      - name: Test Hub
+        run: corepack pnpm --filter @ai-hub/hub test
+
+      - name: Build Desktop Web
+        run: corepack pnpm --filter @ai-hub/desktop build
+
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo Check
+        run: cargo check --manifest-path crates/tools-runner/Cargo.toml
+
+      - name: Cargo Test
+        run: cargo test --manifest-path crates/tools-runner/Cargo.toml
+

@@ -5,9 +5,11 @@ import Database from "better-sqlite3";
 const DEFAULT_DB_PATH = path.resolve(process.cwd(), "apps/hub/data/hub.db");
 const schemaPath = path.resolve(process.cwd(), "apps/hub/src/storage/schema.sql");
 
-export function createDb() {
-  const dbPath = process.env.HUB_DB_PATH ?? DEFAULT_DB_PATH;
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+export function createDb(dbPathArg?: string) {
+  const dbPath = dbPathArg ?? process.env.HUB_DB_PATH ?? DEFAULT_DB_PATH;
+  if (dbPath !== ":memory:") {
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  }
 
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
@@ -18,4 +20,3 @@ export function createDb() {
 }
 
 export type Db = ReturnType<typeof createDb>;
-
