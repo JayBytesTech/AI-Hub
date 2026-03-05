@@ -46,3 +46,7 @@ Default dev endpoints:
 ## Security
 
 - Security model and trust boundaries: `Security_Model.md`
+
+## Data Lifecycle
+
+- Migration and retention policy: `Data_Lifecycle_And_Migrations.md`

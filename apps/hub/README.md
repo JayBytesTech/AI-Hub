@@ -27,6 +27,8 @@ Optional env vars:
 - `PROVIDER_CIRCUIT_COOLDOWN_MS` (default `30000`)
 - `HUB_WORKSPACE_ALLOWED_ROOTS` (optional comma-separated absolute roots)
 - `TERMINAL_BLOCKLIST_PATTERNS` (optional comma-separated regex patterns)
+- `HUB_RETENTION_ARTIFACT_DAYS` (default `0`, disabled)
+- `HUB_RETENTION_TERMINAL_AUDIT_DAYS` (default `0`, disabled)
 
 ## API
 
@@ -77,3 +79,10 @@ Current provider adapters:
 - `chatgpt`: OpenAI Chat Completions adapter.
 When `TERMINAL_CONFIRM_REQUIRED=true`, terminal input requests must include:
 - `{"input":"<command>","confirm":true}`
+
+## Storage Migrations
+
+Schema changes are managed through versioned SQL files:
+- `src/storage/migrations/*.sql`
+
+On startup, the hub applies pending migrations and records them in `schema_migrations`.
