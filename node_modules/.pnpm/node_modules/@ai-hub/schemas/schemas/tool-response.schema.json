@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-hub/schemas/tool-response.schema.json",
+  "title": "ToolResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["success", "result"],
+  "properties": {
+    "success": {
+      "type": "boolean"
+    },
+    "result": {}
+  }
+}
+

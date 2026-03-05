@@ -1,0 +1,63 @@
+
+openapi: 3.0.3
+info:
+  title: AI Hub API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/v1
+
+paths:
+
+  /workspaces:
+    get:
+      summary: List workspaces
+      responses:
+        '200':
+          description: List of workspaces
+
+    post:
+      summary: Create workspace
+      requestBody:
+        required: true
+      responses:
+        '200':
+          description: Workspace created
+
+  /threads:
+    get:
+      summary: List threads
+      responses:
+        '200':
+          description: Thread list
+
+    post:
+      summary: Create thread
+      responses:
+        '200':
+          description: Thread created
+
+  /threads/{id}/messages:
+    get:
+      summary: Get thread messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Messages list
+
+  /tasks:
+    get:
+      summary: List tasks
+      responses:
+        '200':
+          description: Task list
+
+    post:
+      summary: Create task
+      responses:
+        '200':
+          description: Task created
