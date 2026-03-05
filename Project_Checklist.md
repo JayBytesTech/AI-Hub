@@ -22,37 +22,37 @@
 ☑ Connect to hub
 
 ## Phase 5 – Rust Tools
-☐ Create Rust tools runner
-☐ Implement filesystem tools
-☐ Implement search tools
-☐ Implement shell execution
+☑ Create Rust tools runner
+☑ Implement filesystem tools
+☑ Implement search tools
+☑ Implement shell execution
 
 ## Phase 6 – Workspaces
-☐ Create workspace system
-☐ Implement file browsing
+☑ Create workspace system
+☑ Implement file browsing
 
 ## Phase 7 – Terminal
-☐ Integrate terminal
-☐ Capture terminal output
+☑ Integrate terminal
+☑ Capture terminal output
 
 ## Phase 8 – Artifacts
-☐ Artifact storage
-☐ Attach artifacts to prompts
+☑ Artifact storage
+☑ Attach artifacts to prompts
 
 ## Phase 9 – Tasks
-☐ Implement tasks
-☐ Link tasks to workspaces
+☑ Implement tasks
+☑ Link tasks to workspaces
 
 ## Phase 10 – Multi-provider
-☐ Add Claude
-☐ Add Gemini
-☐ Provider selector
+☑ Add Claude
+☑ Add Gemini
+☑ Provider selector
 
 ## Phase 11 – Security
-☐ Path sandboxing
-☐ Command confirmation
+☑ Path sandboxing
+☑ Command confirmation
 
 ## Phase 12 – Packaging
-☐ Bundle desktop app
-☐ Include hub
-☐ Include Rust runner
+☑ Bundle desktop app
+☑ Include hub
+☑ Include Rust runner

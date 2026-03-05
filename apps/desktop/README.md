@@ -15,6 +15,19 @@ pnpm --filter @ai-hub/desktop dev
 pnpm --filter @ai-hub/desktop tauri:dev
 ```
 
+## Package desktop bundle
+
+From repository root:
+
+```bash
+pnpm package:desktop
+```
+
+This packages:
+- Desktop Tauri app
+- Hub server build output as Tauri resources
+- Rust tools runner as sidecar binary
+
 ## Hub connection
 
 Set optional env vars in `apps/desktop/.env`:

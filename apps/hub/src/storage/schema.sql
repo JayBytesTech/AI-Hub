@@ -31,3 +31,13 @@ CREATE TABLE IF NOT EXISTS tasks (
   created_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS artifacts (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  thread_id TEXT,
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  metadata TEXT,
+  created_at INTEGER NOT NULL
+);

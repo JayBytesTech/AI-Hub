@@ -5,6 +5,9 @@ node_modules/
 dist/
 apps/*/dist/
 apps/*/src-tauri/target/
+apps/*/src-tauri/bin/
+apps/*/src-tauri/resources/hub/
+apps/*/src-tauri/gen/
 crates/*/target/
 
 # Local runtime data
@@ -21,4 +24,3 @@ apps/hub/data/
 Thumbs.db
 .vscode/
 .idea/
-

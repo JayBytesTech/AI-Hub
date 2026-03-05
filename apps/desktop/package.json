@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "prepare:bundle": "node ./scripts/prepareBundle.mjs",
+    "tauri:build": "corepack pnpm run prepare:bundle && tauri build",
     "test": "echo \"No tests yet\"",
     "lint": "echo \"No lint step yet\""
   },
@@ -26,4 +27,3 @@
     "vite": "^5.4.11"
   }
 }
-

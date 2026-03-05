@@ -6,7 +6,8 @@
   "scripts": {
     "build": "pnpm -r run build",
     "test": "pnpm -r run test",
-    "lint": "pnpm -r run lint"
+    "lint": "pnpm -r run lint",
+    "package:desktop": "corepack pnpm --filter @ai-hub/hub build && cargo build --release --manifest-path crates/tools-runner/Cargo.toml && corepack pnpm --filter @ai-hub/desktop tauri:build"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
